@@ -1,0 +1,160 @@
+<script>
+        // 💥 진짜 사업 시작 모드: 보안 열쇠가 있는 Vercel 배포 환경에서 완벽 작동합니다.
+        const SUPABASE_URL = "https://boiildfagdcfsvndegprm.supabase.co";
+        const SUPABASE_ANON_KEY = "여기란에_내_SUPABASE_ANON_PUBLIC_KEY_입력"; // 내 Supabase Anon Key 입력
+        
+        // 데이터베이스 클라이언트 깨우기
+        const supabase = sys_supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let currentUser = null;
+        let jsonResult = null;
+
+        // 페이지 로드 시 진짜 로그인 세션 체크
+        window.onload = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) updateUI(session.user);
+            
+            supabase.auth.onAuthStateChange((_event, session) => {
+                updateUI(session ? session.user : null);
+            });
+        };
+
+        // 🔐 멀티 Auth 모달 제어
+        function openAuthDrawer() {
+            const authM = document.getElementById('authModal');
+            authM.classList.remove('invisible', 'opacity-0');
+            authM.classList.add('modal-active', 'opacity-100');
+        }
+
+        function closeAuthModal() {
+            const authM = document.getElementById('authModal');
+            authM.classList.remove('modal-active', 'opacity-100');
+            authM.classList.add('opacity-0');
+            setTimeout(() => { authM.classList.add('invisible'); }, 200);
+        }
+
+        async function login(provider) {
+            closeAuthModal();
+            await supabase.auth.signInWithOAuth({ provider: provider });
+        }
+
+        async function logout() {
+            await supabase.auth.signOut();
+            location.reload();
+        }
+
+        // 💰 multi-tier 결제 모달 제어
+        function openPaywall() {
+            const modal = document.getElementById('premiumModal');
+            modal.classList.remove('invisible', 'opacity-0');
+            modal.classList.add('modal-active', 'opacity-100');
+        }
+
+        function closePaywall() {
+            const modal = document.getElementById('premiumModal');
+            modal.classList.remove('modal-active', 'opacity-100');
+            modal.classList.add('opacity-0');
+            setTimeout(() => { modal.classList.add('invisible'); }, 200);
+        }
+
+        // 🖥️ 실시간 데이터 동기화 UI
+        async function updateUI(user) {
+            currentUser = user;
+            const authSection = document.getElementById('authSection');
+            const emailSpan = document.getElementById('userEmail');
+            const creditTracker = document.getElementById('creditTracker');
+            const creditText = document.getElementById('creditText');
+            const creditBar = document.getElementById('creditBar');
+            const proBadge = document.getElementById('proBadge');
+
+            if (user) {
+                authSection.innerHTML = `
+                    <button type="button" onclick="openPaywall()" class="text-xs font-medium text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer">Pricing</button>
+                    <button type="button" onclick="logout()" class="text-xs text-slate-500 hover:text-slate-300 ml-4 cursor-pointer">Sign Out</button>
+                `;
+                emailSpan.innerText = user.email;
+                creditTracker.classList.remove('hidden');
+                
+                // Supabase에서 실시간 유저 크레딧 및 프로필 조회
+                const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+                if (data) {
+                    if(data.is_premium) {
+                        proBadge.classList.remove('hidden');
+                        creditText.innerText = "PRO Account: Unlimited Access Enabled";
+                        creditBar.style.width = "100%";
+                        creditBar.className = "h-full bg-gradient-to-r from-amber-500 to-orange-500 progress-bar";
+                    } else {
+                        proBadge.classList.add('hidden');
+                        const left = data.max_credits - data.used_credits;
+                        const pct = (left / data.max_credits) * 100;
+                        creditText.innerText = `${left} / ${data.max_credits} Free Credits Remaining`;
+                        creditBar.style.width = `${pct}%`;
+                        if(pct <= 33) {
+                            creditBar.className = "h-full bg-gradient-to-r from-red-500 to-pink-500 progress-bar";
+                        } else {
+                            creditBar.className = "h-full bg-gradient-to-r from-indigo-500 to-purple-500 progress-bar";
+                        }
+                    }
+                }
+            } else {
+                proBadge.classList.add('hidden');
+                authSection.innerHTML = `
+                    <button type="button" onclick="openPaywall()" class="text-xs font-medium text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer">Pricing</button>
+                    <button type="button" onclick="openAuthDrawer()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold rounded-lg shadow-lg shadow-indigo-600/20 transition-all ml-4 cursor-pointer">Sign In</button>
+                `;
+                creditTracker.classList.add('hidden');
+            }
+        }
+
+        // 백엔드 API와 진짜 통신
+        async function handleTransform() {
+            if (!currentUser) {
+                openAuthDrawer();
+                return;
+            }
+            const text = document.getElementById('inputText').value;
+            if (!text) return;
+
+            const btn = document.getElementById('transformBtn');
+            btn.innerText = "Forging Masterpiece...";
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/transform', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: currentUser.id, original_text: text })
+                });
+
+                // 크레딧 부족 시 철통 방어 (요금제 강제 팝업)
+                if (response.status === 402) {
+                    openPaywall();
+                    return;
+                }
+                if (!response.ok) throw new Error();
+
+                jsonResult = await response.json();
+                document.getElementById('resultContainer').classList.remove('hidden');
+                switchTab('linkedin');
+                await updateUI(currentUser);
+            } catch (error) {
+                alert("API Error. Please upgrade your tier or try again later.");
+            } finally {
+                btn.innerText = "Generate Masterpiece ✨";
+                btn.disabled = false;
+            }
+        }
+
+        function switchTab(platform) {
+            if (!jsonResult) return;
+            document.getElementById('outputBox').innerText = jsonResult[platform];
+            const ln = document.getElementById('tab-linkedin');
+            const tw = document.getElementById('tab-twitter');
+            if (platform === 'linkedin') {
+                ln.className = "px-6 py-3.5 text-xs font-bold uppercase tracking-wider border-b-2 border-indigo-500 text-indigo-400 bg-indigo-500/5";
+                tw.className = "px-6 py-3.5 text-xs font-bold uppercase tracking-wider border-b-2 border-transparent text-slate-500";
+            } else {
+                tw.className = "px-6 py-3.5 text-xs font-bold uppercase tracking-wider border-b-2 border-indigo-500 text-indigo-400 bg-indigo-500/5";
+                ln.className = "px-6 py-3.5 text-xs font-bold uppercase tracking-wider border-b-2 border-transparent text-slate-500";
+            }
+        }
+    </script>
