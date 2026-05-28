@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IndieWriter.ai</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center p-10">
+
+    <h1 class="text-4xl font-bold mb-4">Turn Technical Chaos Into Premium Content.</h1>
+    <textarea id="inputText" class="w-full max-w-2xl h-40 p-4 bg-gray-800 rounded-lg" placeholder="여기에 기술적인 내용을 적으세요..."></textarea>
+    <button id="transformBtn" onclick="handleTransform()" class="mt-4 px-6 py-3 bg-indigo-600 rounded-lg hover:bg-indigo-700">Generate Masterpiece ✨</button>
+
+    <script>
+        const SUPABASE_URL = "https://boildfagdcfsvndegprm.supabase.co";
+        // Vercel 환경변수에서 가져오도록 수정 (안전함)
+        const SUPABASE_ANON_KEY = "여기에_Supabase_Anon_Key_입력"; 
+        
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        async function handleTransform() {
+            const text = document.getElementById('inputText').value;
+            alert("입력한 내용: " + text + "\n이제 서버에 요청을 보냅니다!");
+        }
+    </script>
+</body>
+</html>
